@@ -59,10 +59,10 @@ const parseLinks = (text: string) => {
   return results;
 };
 
-const convertLinkToId = (linkTarget: string) =>
-  normalizeLink(linkTarget)
-    .replace(/\/*index\.php\//, "")
-    .replace(".html", "");
+const convertLinkToId = (linkTarget: string) => {
+  const subject = normalizeLink(linkTarget).split("/");
+  return subject.pop().replace(".html", "");
+};
 
 const sanitizeTitle = (title: string) => title.replace(" - DSA Regel Wiki", "");
 
