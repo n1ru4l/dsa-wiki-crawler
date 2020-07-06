@@ -111,7 +111,7 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
     // ```md
     // **Lorem ipsum:**
     // ```
-    .replace(/\* *\n*([^\*]+) *\*/g, (_, content) => `*${content}*`)
+    .replace(/\* *\n*([^\*\n]+) *\*/g, (_, content) => `*${content}*`)
     // convert \# to list (-)
     .replace(/\\#/g, "-");
 
