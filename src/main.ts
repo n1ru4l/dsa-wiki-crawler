@@ -12,19 +12,20 @@ const ID_PREFIX = "dsa-rule-";
 const OUTPUT_DIRECTORY = "result";
 const PREFIX = "https://ulisses-regelwiki.de/";
 const ENTRY_POINTS = [
-  "index.php/regeln.html",
-  "index.php/spezies.html",
-  "index.php/kulturen.html",
-  "index.php/professionen.html",
-  "index.php/sonderfertigkeiten.html",
-  "index.php/vor-und-nachteile.html",
-  "index.php/magie.html",
-  "index.php/goetterwirken.html",
-  "index.php/ruestkammer.html",
-  "index.php/bestiarium.html",
-  "index.php/herbarium.html",
-  "index.php/GifteundKrankheiten.html",
-  "index.php/WdV18.html",
+  "index.php/Fokus_AbgebrocheneAusbildung.html",
+  // "index.php/regeln.html",
+  // "index.php/spezies.html",
+  // "index.php/kulturen.html",
+  // "index.php/professionen.html",
+  // "index.php/sonderfertigkeiten.html",
+  // "index.php/vor-und-nachteile.html",
+  // "index.php/magie.html",
+  // "index.php/goetterwirken.html",
+  // "index.php/ruestkammer.html",
+  // "index.php/bestiarium.html",
+  // "index.php/herbarium.html",
+  // "index.php/GifteundKrankheiten.html",
+  // "index.php/WdV18.html",
 ];
 
 const parseMarkdown = (input: string): string => {
@@ -32,7 +33,9 @@ const parseMarkdown = (input: string): string => {
     .remove("title")
     .remove("style");
   s.use([tables]);
-  return s.turndown(input);
+  const result = s.turndown(input);
+  console.log(result);
+  return result;
 };
 
 const alreadyParsedIds = new Set<string>();
@@ -113,7 +116,11 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
     // ```
     .replace(/\* *\n*([^\*\n]+) *\*/g, (_, content) => `*${content}*`)
     // convert \# to list (-)
-    .replace(/\\#/g, "-");
+    .replace(/\\#/g, "-")
+    // converts "\n#Foobars"
+    // to "- Foobars"
+    // see http://ulisses-regelwiki.de/index.php/vor-und-nachteile.html
+    .replace(/\n#+(?! )[^#]/g, "\n-");
 
   let normalizedMarkdown = markdown;
   let i = 0;
@@ -129,20 +136,22 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
 
   fs.writeFileSync(
     path.join(OUTPUT_DIRECTORY, `${fsId}.md`),
-    `---\nid: ${fsId}\ntitle: ${title} \ntags: [${content.breadcrumb
-      .map((tuple) => tuple[0])
-      .join(", ")}]\nis_entry_point: false\n---\n\n` +
-      prettier.format(
+    prettier.format(
+      `---\nid: ${fsId}\ntitle: ${title} \ntags: [${content.breadcrumb
+        .map((tuple) => tuple[0])
+        .join(", ")}]\nis_entry_point: false\n---\n` +
+        `<breadcrumb>\n` +
         content.breadcrumb
           .map(([name, link]) => {
             let linkId = linkToId(link);
             return `[${name}](${linkId})`;
           })
           .join(" > ") +
-          "\n\n" +
-          normalizedMarkdown,
-        { filepath: "foo.md" }
-      )
+        `\n</breadcrumb>` +
+        "\n\n" +
+        normalizedMarkdown,
+      { filepath: "foo.md" }
+    )
   );
 
   alreadyParsedIds.add(link);
@@ -170,7 +179,10 @@ ${entryPoints.map(({ title, id }) => `- [${title}](${id})`).join("\n")}
 
 `;
 
-  fs.writeFileSync(path.join(OUTPUT_DIRECTORY, `${id}.md`), content);
+  fs.writeFileSync(
+    path.join(OUTPUT_DIRECTORY, `${id}.md`),
+    prettier.format(content, { filepath: "foo.md" })
+  );
 };
 
 type PromiseValue<T> = T extends Promise<infer I> ? I : never;
