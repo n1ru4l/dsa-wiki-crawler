@@ -33,9 +33,7 @@ const parseMarkdown = (input: string): string => {
     .remove("title")
     .remove("style");
   s.use([tables]);
-  const result = s.turndown(input);
-  console.log(result);
-  return result;
+  return s.turndown(input);
 };
 
 const alreadyParsedIds = new Set<string>();
