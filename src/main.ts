@@ -12,20 +12,19 @@ const ID_PREFIX = "dsa-rule-";
 const OUTPUT_DIRECTORY = "result";
 const PREFIX = "https://ulisses-regelwiki.de/";
 const ENTRY_POINTS = [
-  "index.php/Fokus_AbgebrocheneAusbildung.html",
-  // "index.php/regeln.html",
-  // "index.php/spezies.html",
-  // "index.php/kulturen.html",
-  // "index.php/professionen.html",
-  // "index.php/sonderfertigkeiten.html",
-  // "index.php/vor-und-nachteile.html",
-  // "index.php/magie.html",
-  // "index.php/goetterwirken.html",
-  // "index.php/ruestkammer.html",
-  // "index.php/bestiarium.html",
-  // "index.php/herbarium.html",
-  // "index.php/GifteundKrankheiten.html",
-  // "index.php/WdV18.html",
+  "index.php/regeln.html",
+  "index.php/spezies.html",
+  "index.php/kulturen.html",
+  "index.php/professionen.html",
+  "index.php/sonderfertigkeiten.html",
+  "index.php/vor-und-nachteile.html",
+  "index.php/magie.html",
+  "index.php/goetterwirken.html",
+  "index.php/ruestkammer.html",
+  "index.php/bestiarium.html",
+  "index.php/herbarium.html",
+  "index.php/GifteundKrankheiten.html",
+  "index.php/WdV18.html",
 ];
 
 const parseMarkdown = (input: string): string => {
