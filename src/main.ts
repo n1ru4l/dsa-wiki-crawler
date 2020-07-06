@@ -40,7 +40,8 @@ const alreadyParsedIds = new Set<string>();
 const normalizeLink = (link: string) =>
   link
     .replace("https://ulisses-regelwiki.de/", "")
-    .replace("http://ulisses-regelwiki.de/", "");
+    .replace("http://ulisses-regelwiki.de/", "")
+    .replace("ulisses-regelwiki.de/", "");
 
 const parseLinks = (text: string) => {
   const regexMdLinks = /\[([^\[]+)\](\([^[\[\])]*\))/gm;
@@ -64,6 +65,8 @@ const convertLinkToId = (linkTarget: string) => {
   return subject.pop().replace(".html", "");
 };
 
+const linkToId = (link: string) => `${ID_PREFIX}${convertLinkToId(link)}`;
+
 const sanitizeTitle = (title: string) => title.replace(" - DSA Regel Wiki", "");
 
 const parseSite = async (page: puppeteer.Page, link: string) => {
@@ -74,13 +77,19 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
       title: document.title,
       contentCenter: document.querySelector("center")?.innerHTML ?? "",
       contentMain: document.querySelector("#main")?.innerHTML ?? "",
+      breadcrumb: Array.from(
+        document.querySelectorAll(".breadcrumb_boxed .row li a")
+      ).map(
+        (element) =>
+          [element.textContent, element.getAttribute("href") ?? null] as const
+      ),
     };
   });
 
   const id = convertLinkToId(decodeURIComponent(content.id));
   const title = sanitizeTitle(content.title);
 
-  const markdown = parseMarkdown(
+  let markdown = parseMarkdown(
     sanitizeHtml(`${content.contentCenter}\n\n${content.contentMain}`, {
       allowedTags: [...sanitizeHtml.defaults.allowedTags, "h1", "h2"],
       allowedAttributes: {
@@ -90,6 +99,21 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
   ).trim();
 
   const links = parseLinks(markdown);
+
+  markdown = markdown
+    //
+    // Sometimes we get weird formatting like the following:
+    // ```md
+    // **
+    // Lorem ipsum:**
+    // ```
+    // Which is not properly formatted, therefore we need to normalize it to
+    // ```md
+    // **Lorem ipsum:**
+    // ```
+    .replace(/\* *\n*([^\*]+) *\*/g, (_, content) => `*${content}*`)
+    // convert \# to list (-)
+    .replace(/\\#/g, "-");
 
   let normalizedMarkdown = markdown;
   let i = 0;
@@ -105,13 +129,48 @@ const parseSite = async (page: puppeteer.Page, link: string) => {
 
   fs.writeFileSync(
     path.join(OUTPUT_DIRECTORY, `${fsId}.md`),
-    `<!-- ${title} -->\n\n` +
-      prettier.format(normalizedMarkdown, { filepath: "foo.md" })
+    `---\nid: ${fsId}\ntitle: ${title} \ntags: [${content.breadcrumb
+      .map((tuple) => tuple[0])
+      .join(", ")}]\nis_entry_point: false\n---\n\n` +
+      prettier.format(
+        content.breadcrumb
+          .map(([name, link]) => {
+            let linkId = linkToId(link);
+            return `[${name}](${linkId})`;
+          })
+          .join(" > ") +
+          "\n\n" +
+          normalizedMarkdown,
+        { filepath: "foo.md" }
+      )
   );
 
   alreadyParsedIds.add(link);
 
-  return links;
+  return [
+    {
+      id: fsId,
+      title,
+    },
+    links,
+  ] as const;
+};
+
+const writeEntryPointFile = (entryPoints: { id: string; title: string }[]) => {
+  const id = `${ID_PREFIX}start`;
+  const content = `---
+id: ${id}
+title: DSA Wiki
+tags: []
+is_entry_point: true
+---
+# DSA Wiki
+
+${entryPoints.map(({ title, id }) => `- [${title}](${id})`).join("\n")}
+
+`;
+
+  fs.writeFileSync(path.join(OUTPUT_DIRECTORY, `${id}.md`), content);
 };
 
 type PromiseValue<T> = T extends Promise<infer I> ? I : never;
@@ -120,11 +179,17 @@ const main = async () => {
   const browser = await puppeteer.launch({ args: ["--no-sandbox"] });
   const page = await browser.newPage();
 
-  const links = [] as PromiseValue<ReturnType<typeof parseSite>>;
+  const links = [] as PromiseValue<ReturnType<typeof parseSite>>[1];
+  const entryPoints = [] as { id: string; title: string }[];
 
   for (const entryPointLink of ENTRY_POINTS) {
-    links.push(...(await parseSite(page, entryPointLink)));
+    const [entryPoint, siteLinks] = await parseSite(page, entryPointLink);
+    console.log(`entry point: ${entryPoint.id}`);
+    links.push(...siteLinks);
+    entryPoints.push(entryPoint);
   }
+
+  writeEntryPointFile(entryPoints);
 
   let i = -1;
 
@@ -134,7 +199,7 @@ const main = async () => {
     if (!link) break;
     if (alreadyParsedIds.has(link.link)) continue;
     console.log(i, link.link);
-    const newLinks = await parseSite(page, link.link);
+    const [, newLinks] = await parseSite(page, link.link);
     links.push(...newLinks);
   } while (true);
 
