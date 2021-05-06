@@ -14,7 +14,7 @@
     "prettier": "^2.0.5",
     "lodash": "^4.17.15",
     "puppeteer": "^4.0.0",
-    "sanitize-html": "^1.27.0",
+    "sanitize-html": "^2.3.2",
     "turndown": "^6.0.0",
     "turndown-plugin-gfm": "^1.0.2",
     "typescript": "^3.9.5"
